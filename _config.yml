@@ -1,0 +1,14 @@
+# Site settings
+title: Logic Wire
+email: otus.lisp@gmail.com
+description: Bitmap Wire Logic Simulator
+baseurl: "/logic-wire"
+url: "http://otus-lisp.github.io/logic-wire"
+host: 0.0.0.0
+
+exclude:
+  - "src/"
+  - "*.jade"
+
+# Build settings
+markdown: kramdown
