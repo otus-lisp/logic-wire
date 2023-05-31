@@ -19,7 +19,7 @@ title: Bitmap Wire Logic Simulator
 
 ![](media/0-1.gif)
 
-Что-то знакомое, да? Жутко напоминает [микрофотографии процессорных кристаллов](https://en.wikipedia.org/wiki/Die_(integrated_circuit)){:target="_blank"}, только в динамике.
+Что-то знакомое, да? Напоминает [микрофотографии процессорных кристаллов](https://en.wikipedia.org/wiki/Die_(integrated_circuit)){:target="_blank"}, только в динамике.
 
 # Что
 

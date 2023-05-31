@@ -216,8 +216,10 @@
       (define color-table (board 'color-table))
       (define bitmap (board 'bitmap))
 
-      (define width (board 'width))  (define height (board 'height))
-      (define data (make-bytevector (* width height 3)))
+      (define width (board 'width))
+      (define padding (+ (* width 3) (mod width 4))) ; align to the 4 bytes
+      (define height (board 'height))
+      (define data (make-bytevector (* padding height)))
       (for-each (lambda (j)
             (for-each (lambda (i p)
                   (define cell (ref0 bitmap i (- height j 1)))
@@ -228,34 +230,12 @@
                   (set-ref! data (+ p 1) (cadr color))
                   (set-ref! data (+ p 0) (caddr color)) )
                (iota width 0)
-               (iota width (* j width 3) 3)))
+               (iota width (* j padding) 3)))
          (iota height 0))
       
-      (define image-size (+ (size data) 54))
-      (print image-size) (print width) (print height)
+      (define image-size (+ (size data) 54)) ; 54 is a BMP headres size
 
-      ;; ; TEMP
-      ;; (print (base64:encode (append (list
-      ;;    ; Bitmap File Header
-      ;;    #\B #\M ; magic
-      ;;    (band #xFF (>> image-size 0)) (band #xFF (>> image-size 8)) (band #xFF (>> image-size 16)) (band #xFF (>> image-size 24))
-      ;;    0 0 0 0 ; application
-      ;;    #x36 #x00 #x00 #x00 ; image start (54)
-      ;;    ; DIB Header
-      ;;    #x28 #x00 #x00 #x00 ; BITMAPINFOHEADER
-      ;;    (band #xFF (>> width 0)) (band #xFF (>> width 8)) (band #xFF (>> width 16)) (band #xFF (>> width 24))
-      ;;    (band #xFF (>> height 0)) (band #xFF (>> height 8)) (band #xFF (>> height 16)) (band #xFF (>> height 24))
-      ;;    #x01 #x00 ; color planes
-      ;;    #x18 #x00 ; bits per pixel
-      ;;    #x00 #x00 #x00 #x00 ; compression method
-      ;;    #x00 #x00 #x00 #x00 ; image size (not required for the RGB)
-      ;;    #x00 #x00 #x00 #x00 ; horizontal ppm
-      ;;    #x00 #x00 #x00 #x00 ; vertical ppm
-      ;;    #x00 #x00 #x00 #x00 ; number of colors (0 means default)
-      ;;    #x00 #x00 #x00 #x00 ; number of important colors (0 means all)
-      ;; ) (bytevector->list data))))
-
-      ; return BMP image
+      ; create BMP image
       (bytevector-append (list->bytevector (list
          ; Bitmap File Header
          #\B #\M ; magic
@@ -275,7 +255,4 @@
          #x00 #x00 #x00 #x00 ; number of colors (0 means default)
          #x00 #x00 #x00 #x00 ; number of important colors (0 means all)
       )) data))
-      ;(string-append "data:image/bmp;base64," (base64:encode image)))
-      ;; (string-append "data:image/bmp;base64," "xxxxxxx"))
-
 ))
