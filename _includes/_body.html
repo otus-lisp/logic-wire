@@ -1,11 +1,138 @@
 
-<body><a href="introduction.html">Introduction</a>
+<body>
+  <div class="ui borderless main menu">
+    <div class="ui text container"><a class="header item" href="{{ site.baseurl }}/"><img class="logo" src="favicon.ico"/>Bitmap Wire Logic Simulator</a>
+      <div class="ui dropdown right floated item">
+        <div class="item">Оглавление</div><i class="dropdown icon"></i>
+        <div class="ui menu"><a class="item" href="introduction.html">Вступление</a><a class="item" href="rules.html">Правила</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="ui container">{{ content }}</div>
   <script>
     $(function() {
-      // this parameter will enable/disable the closing for the previous .united modals when the next will be opened :)
       $('.united.modal').modal({
         allowMultiple: false,
       });
+      $('.ui.dropdown').dropdown({
+        on: 'hover'
+      });
     })
+  </script>
+  <script src="dist/base64ArrayBuffer.js"></script>
+  <!-- Лисп-->
+  <script>
+    // ol functions:
+    var ol_load_layout;
+    var ol_xpm3_to_board;
+    var ol_board_texture;
+    // ol module:
+    var Module = {
+      INITIAL_MEMORY: 67108864,
+      postRun: [
+        function() {
+          console.log("Ol started.");
+          Module._new_ol();
+          ol_load_layout = Module._ol_load_layout;
+          ol_xpm3_to_board = Module._ol_xpm3_to_board;
+          ol_board_texture = Module._ol_board_texture;
+          handleCanvases();
+        }
+      ],
+      print: function(text) {
+        console.log(text);
+      },
+      printErr: function(text) {
+        console.error(text);
+      },
+      onAbort: function(text) {
+        console.error(text);
+      }
+    };
+    var script = document.createElement('script');
+    script.src = "ol.js";
+    document.body.appendChild(script);
+    
+  </script>
+  <!-- макеты-->
+  <script>
+    var SCALE = 10;
+    
+    function handleCanvases()
+    {
+      // превратим все блоки кода layout в канвасы с привязанными к ним объектами Ol
+      $('.language-layout').each((index, code) => {
+        // вычислим размеры картинки
+        const board = code.innerHTML.split('\n').filter(line => line && !line.startsWith(':'));
+        const height = board.length - 2;
+        const width = board[0].length - 2;
+    
+        // заменим макет на канвас
+        const parent = document.createElement('div')
+        const canvas = document.createElement('canvas')
+        parent.appendChild(canvas);
+        canvas.width = width * SCALE;
+        canvas.height = height * SCALE;
+        canvas.setAttribute('scale', SCALE);
+        canvas.classList.add('canvas');
+        code.parentNode.replaceChild(parent, code);
+    
+        // canvas.style.width = `${width * SCALE}px`;
+        // canvas.style.height = `${height * SCALE}px`;
+    
+        const context = canvas.getContext("2d");
+        drawBoard(canvas);
+    
+        // отправим макет в лисп
+        var bytes = code.innerHTML;
+        var length = lengthBytesUTF8(bytes) + 1;
+        var ptr = Module._malloc(length);
+        stringToUTF8(bytes, ptr, length);
+    
+        canvas.attributes["xpm3"] = ol_load_layout(ptr); // parse image
+        canvas.attributes["board"] = ol_xpm3_to_board(canvas.attributes.xpm3); // make model from parsed image
+    
+        const img = new Image();
+        img.onload = () => {
+          context.imageSmoothingEnabled = false;
+          context.drawImage(img, 0, 0, canvas.width, canvas.height);
+          drawBoard(canvas);
+        };
+        ptr = ol_board_texture(canvas.attributes.board);
+        // размер bmp текстуры в байтах (ширина должна быть кратной 2, или 4?)
+        var len = width * height * 3 + 54;
+        var str = new Uint8Array(len);
+        for (var i = 0; i < len; i++) {
+          var ch = getValue(ptr++, 'i8');
+          str[i] = ch;
+        }
+        img.src="data:image/bmp;base64," + base64ArrayBuffer(str);
+      });
+    }
+    
+    function drawBoard(canvas)
+    {
+      const context = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      const p = Number(canvas.attributes["scale"].value);
+    
+      context.beginPath();
+      // 0.5 мы добавляем, чтобы линии были резкими
+      // только не спрашивайте меня почему так
+      for (var x = 0; x <= w; x += p) {
+        context.moveTo(x + 0.5, 0 + 0.5);
+        context.lineTo(x + 0.5, h + 0.5);
+      }
+    
+      for (var y = 0; y <= h; y += p) {
+        context.moveTo(0 + 0.5, y + 0.5);
+        context.lineTo(w + 0.5, y + 0.5);
+      }
+    
+      context.setLineDash([2, 1]);
+      context.strokeStyle = "darkgrey";
+      context.stroke();
+    }
   </script>
 </body>

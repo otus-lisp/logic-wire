@@ -3,7 +3,7 @@ title: Logic Wire
 email: otus.lisp@gmail.com
 description: Bitmap Wire Logic Simulator
 baseurl: "/logic-wire"
-url: "http://otus-lisp.github.io/logic-wire"
+url: "http://otus-lisp.github.io"
 host: 0.0.0.0
 
 exclude:
