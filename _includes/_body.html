@@ -4,7 +4,7 @@
     <div class="ui text container"><a class="header item" href="{{ site.baseurl }}/"><img class="logo" src="favicon.ico"/>Bitmap Wire Logic Simulator</a>
       <div class="ui dropdown right floated item">
         <div class="item">Оглавление</div><i class="dropdown icon"></i>
-        <div class="ui menu"><a class="item" href="introduction.html">Вступление</a><a class="item" href="rules.html">Правила</a></div>
+        <div class="ui menu"><a class="item" href="introduction.html">Вступление</a><a class="item" href="rules.html">Правила</a><a class="item" href="not-or-and.html">Not, Or, And</a></div>
       </div>
     </div>
   </div>
@@ -76,6 +76,7 @@
         const animated = code.parentNode.getAttribute("animated") || false;
         const fps = Number(code.parentNode.getAttribute("fps")) || 20;
         const scale = Number(code.parentNode.getAttribute("scale")) || 10;
+        const ttl = Number(code.parentNode.getAttribute("ttl")) || 5;
     
         // заменим макет на канвас
         const container = document.createElement('div')
@@ -112,7 +113,7 @@
         layout.forEach((line, j) => {
           var i = -1;
           while ((i = line.indexOf("*", i+1)) != -1)
-            ol_board_energize(board, i, j, 5);
+            ol_board_energize(board, i, j, ttl);
         })
     
         // картинка
@@ -137,6 +138,14 @@
           img.src="data:image/bmp;base64," + base64ArrayBuffer(str);
         }
         set_texture();
+    
+        // питание мышью
+        canvas.addEventListener('mousedown', (event) => {
+          let x = Math.floor(event.offsetX / scale);
+          let y = Math.floor(event.offsetY / scale);
+          ol_board_energize(board, x+1, y+1, ttl);
+          set_texture();
+        });
     
         // кнопки управления
         if (animated) {

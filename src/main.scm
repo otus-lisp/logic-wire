@@ -268,8 +268,10 @@
       (define wires (board 'wires)) ; дорожки
       (define wire-states (board 'wire-states))
       (define wire (rref wires i j))
-      (if wire
-         (put! wire-states wire ttl)))
+      (when wire
+         (if (wire-states wire #f)
+            (put! wire-states wire #false) ; power off
+            (put! wire-states wire ttl)))) ; power on
 
       ;; (define wire-stateS (fold (lambda (ff i)
       ;;       (put ff i #f))
