@@ -3,13 +3,13 @@
            (otus random!))
    (export
       load-xpm3
-      xpm3-width
-      xpm3-height
+      load-layout
 
       xpm3->board
       board-texture
 
-      load-layout
+      board-energize
+      board-simulate
    )
 
 (begin
@@ -39,21 +39,17 @@
             'height (length bitmap)
             'bitmap (make-vector (map make-vector bitmap))
             'colors (+ (length colors) 1)
-            'color-table (cons [32 99 '(98 108 97 99 107)] colors)
+            'color-table colors
          }))
 
    (define (rref board i j) (ref (ref board j) i))
-   (define (ref0 board i j) (ref (ref board (++ j)) (++ i)))
 
-   (define (load-xpm3 source)
-      (define file (try-parse xpm3-parser (str-iter source) #f))
+   (define (load str parser)
+      (define file (try-parse parser (str-iter str) #f))
       (if file
          (car file)))
-   (define (load-layout source)
-      (define file (try-parse layout-parser (str-iter source) #f))
-      ;; (print file)
-      (if file
-         (car file)))
+   (define (load-xpm3 str) (load str xpm3-parser))
+   (define (load-layout str) (load str layout-parser))
 
    (define (xpm3-width xpm3)
       (xpm3 'width))
@@ -65,14 +61,13 @@
       ; step 2: find all NOT gates and put into separate dictionary
       ; step 3: connect circuits to the games as "in" and "out" sockets
 
-      (define not-a-wire (ref (car (xpm3 'color-table)) 1))
+      (define not-a-wire #\space)
       ; очистим "черные" клеточки (впишем вместо них #f):
       (define board (vector-map (lambda (row)
             (vector-map (lambda (cell)
                   (if (not (eq? cell not-a-wire)) cell))
                row))
          (xpm3 'bitmap)))
-      ;; (print "board: " board)
 
       (define width (xpm3 'width))
       (define height (xpm3 'height))
@@ -81,21 +76,35 @@
             (define index (ref array 1))
             (define color (list->string (ref array 3)))
             (put ff index (cond
-               ((string-eq? color "black")  '(  0   0   0))
-               ((string-eq? color "red")    '(205  49  49))
-               ((string-eq? color "green")  '( 13 188 121))
-               ((string-eq? color "yellow") '(229 229  16))
-               ((string-eq? color "blue")   '( 36 114 200))
-               ((string-eq? color "magenta")'(188  63 188))
-               ((string-eq? color "cyan")   '( 17 168 205))
-               ((string-eq? color "white")  '(229 229 229))
-               ((string-eq? color "gray")   '(189 189 189))
-               ((string-eq? color "orange") '(255 160   0))
-               ((string-eq? color "None")   '( 17  17  17))
-               (else '(255 255 255)))))
-         {}
+               ((string-eq? color "red")    [[195  20  20] [255   0   0]])
+               ((string-eq? color "green")  [[ 20 195  20] [  0 255   0]])
+               ((string-eq? color "blue")   [[ 20  20 195] [  0   0 255]])
+
+               ((string-eq? color "yellow") [[195 195  20] [255 255   0]])
+               ((string-eq? color "magenta")[[195  20 195] [255   0 255]])
+               ((string-eq? color "cyan")   [[  0 195 195] [  0 255 255]])
+
+               ((string-eq? color "white")  [[195 195 195] [255 255 255]])
+               ;; ((string-eq? color "gray")   [[105 105 105] [128 128 128]])
+               ((string-eq? color "orange") [[255 140   0] [255 215   0]]) ; DarkOrange / Orange
+
+               ((string-eq? color "black")  [[  0   0   0] [ 10  10  10]])
+               ((string-eq? color "None")   [[ 17  17  17] [ 97  97  97]]) ; None
+               (else [[229 229 229] [255 255 255]])))) ; неизвестный цвет
+         { #f [[  0   0   0] [ 32  32  32]] } ; фоновый цвет (с индикатором ошибки)
          (xpm3 'color-table)))
+      (print (xpm3 'color-table))
       ;; (print "color-table: " color-table)
+
+      ;; ; find power color key (if exist)
+      ;; (define power-color (fold (lambda (id color)
+      ;;       (if id id
+      ;;       else
+      ;;          (define index (ref color 1))
+      ;;          (if (string-eq? (list->string (ref color 3)) "power") (ref color 1))))
+      ;;    #f
+      ;;    (xpm3 'color-table)))
+      ;; ;; (print "power-color: " power-color)
 
       ; 1. let's find all wires,
       ;    check the cross-wire connections
@@ -185,57 +194,56 @@
                '()
             (iota height)))
       (print "loaded " (length gates))
+      ;; (print "gates: " gates)
 
       ; current wires state: powered (true) or not (false)
-      (define wire-states (fold (lambda (f i)
-            (put f i #f)) ; 
-         {}
-         (iota wires-count 1)))
+      (define wire-states (fold (lambda (ff i) ; array with unpowered wires
+               (put ff i #f))
+            {}
+            (iota wires-count 1)))
+      (print "wire-states: " wire-states)
 
-      ;; ; power all red wires
-      ;; (define power-wire (ref (lref (file 'color-table) 1) 1))
-      ;; (for-each (lambda (j)
-      ;;       (for-each (lambda (i)
-      ;;             (if (eq? (rref board i j) power-wire)
-      ;;                (put! wire-states (rref wires i j) TTL)))
-      ;;          (iota WIDTH 1)))
-      ;;    (iota HEIGHT 1))
+      (define padding (+ (* width 3) (mod width 4))) ; align to the 4 bytes (for BITMAP)
 
       {
-         'bitmap board
-         'wires wires
-         'wires-count wires-count
-         'gates gates
-         'color-table color-table
+         'wires wires ; битовая карта с номерами проводов
+         'wires-count wires-count ; и их количество
+         'wire-states wire-states ; состояние проводов (под напряжением или нет)
+         'gates gates ; вентили (от какого провода к какому)
+         'color-table color-table ; таблица цветов
 
-         'width width 'height height
+         'bitmap board ; оригинальные цвета
+         'width width 'height height 'padding padding
+         'texture (make-bytevector (* padding height) 0) ; заливка черным
       })
 
    (define (board-texture board)
-      (define wires (board 'wires))
+      (define wires (board 'wires)) ; дорожки
+      (define wire-states (board 'wire-states))
+      (define bitmap (board 'bitmap)) ; цвета
       (define color-table (board 'color-table))
-      (define bitmap (board 'bitmap))
 
       (define width (board 'width))
-      (define padding (+ (* width 3) (mod width 4))) ; align to the 4 bytes
+      (define padding (board 'padding))
       (define height (board 'height))
-      (define data (make-bytevector (* padding height)))
+      (define texture (board 'texture))
       (for-each (lambda (j)
             (for-each (lambda (i p)
-                  (define cell (ref0 bitmap i (- height j 1)))
-                  ;; (define wire (rref wires i j))
-
-                  (define color (color-table cell '(0 0 0)))
-                  (set-ref! data (+ p 2) (car color))
-                  (set-ref! data (+ p 1) (cadr color))
-                  (set-ref! data (+ p 0) (caddr color)) )
-               (iota width 0)
-               (iota width (* j padding) 3)))
-         (iota height 0))
+                  (define wire (rref wires i j))
+                  (when wire
+                     (define power (wire-states wire))
+                     (define color (color-table (rref bitmap i j)))
+                     (define rgb (if power (ref color 2) (ref color 1)))
+                     (set-ref! texture (+ p 2) (ref rgb 1))
+                     (set-ref! texture (+ p 1) (ref rgb 2))
+                     (set-ref! texture (+ p 0) (ref rgb 3))))
+               (iota width 1)
+               (iota width (* (- height j) padding) 3))) ; перевернем для BITMAP
+         (iota height 1))
       
-      (define image-size (+ (size data) 54)) ; 54 is a BMP headres size
+      (define image-size (+ (size texture) 54)) ; 54 is a BMP headres size
 
-      ; create BMP image
+      ; create BMP image (todo: move to xpm3->board
       (bytevector-append (list->bytevector (list
          ; Bitmap File Header
          #\B #\M ; magic
@@ -254,5 +262,54 @@
          #x00 #x00 #x00 #x00 ; vertical ppm
          #x00 #x00 #x00 #x00 ; number of colors (0 means default)
          #x00 #x00 #x00 #x00 ; number of important colors (0 means all)
-      )) data))
+      )) texture))
+
+   (define (board-energize board i j ttl) ; starting from 1, ttl 0 means forever
+      (define wires (board 'wires)) ; дорожки
+      (define wire-states (board 'wire-states))
+      (define wire (rref wires i j))
+      (if wire
+         (put! wire-states wire ttl)))
+
+      ;; (define wire-stateS (fold (lambda (ff i)
+      ;;       (put ff i #f))
+      ;;    {}
+      ;;    (iota wires-count 1)))
+      ;; (define TTL 99) ; 0 for "forever"
+      ;; (define wire-states (fold (lambda (ff j)
+      ;;       (fold (lambda (ff i)
+      ;;             (if (eq? (rref board i j) power-color)
+      ;;                (put ff (rref wires i j) TTL) ; power wire with "power" cell
+      ;;             else
+      ;;                ff))
+      ;;          ff (iota width 1)))
+      ;;    (fold (lambda (ff i) ; array with unpowered wires
+      ;;          (put ff i #f))
+      ;;       {}
+      ;;       (iota wires-count 1))
+      ;;    (iota height 1)))
+
+   (define (board-simulate board)
+      (define gates (board 'gates))
+      (define wire-states (board 'wire-states))
+      ; find signals
+      (define signals
+         (fold (lambda (ff gate)
+                  (define from (ref gate 1))
+                  (define to (ref gate 2))
+                  (if (not (wire-states from #f))
+                     (put ff to #true)
+                  else
+                     ff))
+            {}
+            gates))
+      ; update wires
+      (for-each (lambda (wire)
+            (define state (wire-states wire #f))
+            (if (natural? state) ; wire manually powered
+               (put! wire-states wire (- state 1))
+            else
+               (put! wire-states wire (signals wire #false))))
+         (keys wire-states)))
+
 ))

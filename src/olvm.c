@@ -5889,7 +5889,7 @@ size_t OLVM_pin(struct olvm_t* ol, word ref)
 			goto ok;
 	}
 
-	// нету места, попробуем увеличить
+	// нет места, попробуем увеличить
 	size_t ncr = cr + cr / 3 + 1;
     ol->heap.gc(ol, ncr - cr);
 

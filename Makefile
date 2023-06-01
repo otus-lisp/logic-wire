@@ -24,15 +24,16 @@ define COMPILE_OL_CODE
 	(lambda (args)
 		; just a vector of pinned functions
 		(halt [
-			; xpm3
+			; xpm3/layout
 			(vm:pin load-xpm3)
-			(vm:pin xpm3-width)
-			(vm:pin xpm3-height)
-			; board
-			(vm:pin xpm3->board)
-			(vm:pin board-texture)
-			; layout
 			(vm:pin load-layout)
+			; processing
+			(vm:pin xpm3->board)
+			; board
+			(vm:pin board-texture)
+			(vm:pin board-energize)
+			(vm:pin board-simulate)
+			; layout
 		])))) stdout)
 endef
 export COMPILE_OL_CODE
